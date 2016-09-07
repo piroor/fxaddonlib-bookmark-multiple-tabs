@@ -1,30 +1,26 @@
-<?xml version="1.0"?>
-<!--
- Bookmark Multiple Tabs library for Firefox 2 or later
+/**
+ * Bookmark Multiple Tabs library for Firefox 2 or later
+ *
+ * Usage:
+ *   First, load this file into three Chrome documents:
+ *     * chrome://browser/content/browser.xul
+ *     * chrome://browser/content/places/bookmarkProperties.xul
+ *     * chrome://browser/content/places/bookmarkProperties2.xul
+ *
+ *   Then, run this line in your JS files:
+ *     window['piro.sakura.ne.jp'].bookmarkMultipleTabs.addBookmarkFor(tabsArray, folderName);
+ *
+ * license: The MIT License, Copyright (c) 2009-2016 YUKI "Piro" Hiroshi
+ *   http://github.com/piroor/fxaddonlib-bookmark-multiple-tabs/blob/master/license.txt
+ * original:
+ *   http://github.com/piroor/fxaddonlib-bookmark-multiple-tabs
+ */
+(function() {
+	const currentRevision = 8;
 
- Usage:
-   in chrome.manifest:
-     overlay  chrome://browser/content/browser.xul
-              chrome://***/content/bookmarkMultipleTabs.xul
-     overlay  chrome://browser/content/places/bookmarkProperties.xul
-              chrome://***/content/bookmarkMultipleTabs_bookmarkPropertiesOverlay.xul
-     overlay  chrome://browser/content/places/bookmarkProperties2.xul
-              chrome://***/content/bookmarkMultipleTabs_bookmarkPropertiesOverlay.xul
-
-   in JS files:
-     window['piro.sakura.ne.jp'].bookmarkMultipleTabs.addBookmarkFor(tabsArray, folderName);
-
- license: The MIT License, Copyright (c) 2009-2015 YUKI "Piro" Hiroshi
- original:
-   http://github.com/piroor/fxaddonlib-bookmark-multiple-tabs
--->
-<overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-<script type="application/javascript"><![CDATA[
-
+	if (!('BookmarkPropertiesPanel' in window)) {
 window.addEventListener('DOMContentLoaded', function() {
 	window.removeEventListener('DOMContentLoaded', arguments.callee, true);
-
-	const currentRevision = 8;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -141,6 +137,37 @@ window.addEventListener('DOMContentLoaded', function() {
 		}
 	};
 }, true);
+	}
+	else {
+	if (!BookmarkPropertiesPanel._determineItemInfo ||
+		BookmarkPropertiesPanel.__bookmarkMultipleTabs__determineItemInfo)
+		return;
 
-]]></script>
-</overlay>
+	// Defined at http://mxr.mozilla.org/mozilla-central/source/browser/components/places/content/bookmarkProperties.js#73
+	const ACTION_ADD = 1;
+
+	BookmarkPropertiesPanel.__bookmarkMultipleTabs__determineItemInfo = BookmarkPropertiesPanel._determineItemInfo;
+	BookmarkPropertiesPanel._determineItemInfo = function(...aArgs) {
+		var folderNameOverride = null;
+		try {
+			folderNameOverride = Components.classes['@mozilla.org/preferences;1']
+				.getService(Components.interfaces.nsIPrefBranch)
+				.getCharPref('temp.showMinimalAddMultiBookmarkUI.folderName');
+			folderNameOverride = decodeURIComponent(escape(folderNameOverride));
+		}
+		catch(e) {
+		}
+		var retVal = this.__bookmarkMultipleTabs__determineItemInfo.apply(this, aArgs);
+		if (folderNameOverride &&
+			this._action == ACTION_ADD) {
+			let dialogInfo = window.arguments[0];
+			if (dialogInfo.type === 'folder' &&
+				!('title' in dialogInfo) &&
+				'URIList' in dialogInfo) {
+				this._title = folderNameOverride;
+			}
+		}
+		return retVal;
+	};
+	}
+})();
